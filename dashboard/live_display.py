@@ -149,7 +149,7 @@ class LiveDashboard:
             parts.append(f"[magenta]Trackers: {tracker_count}[/]")
 
         if leaks > 0:
-            parts.append(f"[bold red]⚠ Leaks: {leaks}[/]")
+            parts.append(f"[bold red][ALERT] Leaks: {leaks}[/]")
 
         vpn_status = vpn.get("vpn_status", "")
         if "Active" in vpn_status:
@@ -162,7 +162,7 @@ class LiveDashboard:
 
         spoof_count = spoof.get("spoofs_detected", 0)
         if spoof_count > 0:
-            parts.append(f"[bold red]☠ Spoofs: {spoof_count}[/]")
+            parts.append(f"[bold red][ALERT] Spoofs: {spoof_count}[/]")
 
         if self.engine.duration:
             remaining = self.engine.duration - (elapsed.total_seconds() if elapsed else 0)
@@ -343,7 +343,7 @@ class LiveDashboard:
             http_table.add_column("V", justify="right", style="yellow", width=12)
             http_table.add_row("Requests", str(http.get("total_requests", 0)))
             http_table.add_row("URLs", str(http.get("unique_urls", 0)))
-            sections.append(Panel(http_table, title="[bold yellow]HTTP ⚠[/]", box=box.SIMPLE))
+            sections.append(Panel(http_table, title="[bold yellow]HTTP [CLEAR][/]", box=box.SIMPLE))
 
         panel_content = Group(*sections)
         return Panel(
@@ -573,7 +573,7 @@ class SummaryReport:
         http = stats.get("http", {})
         if http.get("total_requests", 0) > 0:
             self.console.print(
-                f"[bold yellow]⚠ Plaintext HTTP:[/] "
+                f"[bold yellow][ALERT] Plaintext HTTP:[/] "
                 f"{http.get('total_requests', 0)} requests "
                 f"({http.get('unique_urls', 0)} unique URLs)"
             )
@@ -674,7 +674,7 @@ class SummaryReport:
         else:
             self.console.print(Panel(
                 "[bold green]No security issues detected.[/]",
-                title="[bold green]✅ Clean Session[/]",
+                title="[bold green][CLEAN] Session[/]",
                 border_style="green",
             ))
         self.console.print()

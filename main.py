@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import box
 
-from utils.helpers import check_root, get_default_interface
+from utils.helpers import check_root, check_capture_privileges, get_default_interface
 from capture import CaptureEngine
 from dashboard.live_display import LiveDashboard, SummaryReport
 from reports.dossier import ISPDossier
@@ -33,8 +33,9 @@ def build_parser():
     web_parser = subparsers.add_parser("web", help="Launch interactive tactical web dashboard & control center")
     web_parser.add_argument("--host", default="127.0.0.1", help="Binding host (default: 127.0.0.1)")
     web_parser.add_argument("--port", type=int, default=8080, help="Binding port (default: 8080)")
-    web_parser.add_argument("--demo", action="store_true", default=True, help="Run in synthetic simulation mode (rootless)")
-    web_parser.add_argument("-i", "--interface", default=None, help="Network interface for live sniffing (requires root)")
+    web_parser.add_argument("--live", action="store_true", default=False, help="Force authentic live network monitoring mode")
+    web_parser.add_argument("--demo", action="store_true", default=False, help="Run in synthetic simulation mode (rootless)")
+    web_parser.add_argument("-i", "--interface", default=None, help="Network interface for live sniffing")
 
     # LIVE MODE
     live_parser = subparsers.add_parser("live", help="Launch terminal live dashboard on network interface (requires root)")
@@ -184,16 +185,40 @@ def main():
         from web_app import run_web_server
         host = getattr(args, "host", "127.0.0.1")
         port = getattr(args, "port", 8080)
-        demo = getattr(args, "demo", True)
+        demo = getattr(args, "demo", False)
+        live = getattr(args, "live", False)
         iface = getattr(args, "interface", None)
 
         engine = None
-        if iface:
+        if iface or live:
             check_root(required=True)
-            engine = CaptureEngine(interface=iface, simulate=False)
+            active_iface = iface or get_default_interface()
+            engine = CaptureEngine(interface=active_iface, simulate=False, geo_enabled=True)
             engine.start()
+            demo = False
+        elif not demo:
+            if check_capture_privileges(required=False):
+                active_iface = iface or get_default_interface()
+                engine = CaptureEngine(interface=active_iface, simulate=False, geo_enabled=True)
+                engine.start()
+                demo = False
+            else:
+                demo = True
 
-        run_web_server(host=host, port=port, engine=engine, demo=demo)
+        run_web_server(host=host, port=port, engine=engine, demo=demo, interface=iface)
+        return
+
+    if command == "live":
+        iface = args.interface or get_default_interface()
+        check_root(required=True)
+        run_live_or_demo(
+            interface=iface,
+            duration=args.duration,
+            show_all=args.show_all,
+            geo_enabled=not args.no_geo,
+            output_path=args.output,
+            simulate=False,
+        )
         return
 
     if command == "demo" or args.demo:
@@ -231,11 +256,11 @@ def main():
 
     # Default fallback: live mode
     iface = args.interface or get_default_interface()
-    is_root = check_root(required=False)
-    if not is_root:
-        print("[!] Notice: Not running as root. Live packet sniffing requires root privileges.")
+    has_caps = check_capture_privileges(required=False)
+    if not has_caps:
+        print("[!] Notice: No live capture privileges detected.")
         print("[+] Starting Web Dashboard with Synthetic Simulation instead...")
-        print("[+] To run live sniffing instead, execute: sudo python main.py live\n")
+        print("[+] To run live sniffing, ensure wireshark/dumpcap access or run with sudo.\n")
         from web_app import run_web_server
         run_web_server(host="127.0.0.1", port=8080, demo=True)
         return

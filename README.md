@@ -273,7 +273,8 @@ isp-spy-mirror/
 ├── capture.py                  # Core packet capture and analysis pipeline
 ├── main.py                     # Unified CLI entry point
 ├── pyproject.toml              # Build system, metadata, and dependencies
-└── requirements.txt            # Python package requirements
+├── requirements.txt            # Python package requirements
+└── VERIFICATION_REPORT.md      # Full automated test verification report
 ```
 
 ---

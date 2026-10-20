@@ -2,10 +2,12 @@
 Packet capture engine — full intelligence edition.
 """
 
-from scapy.all import sniff, conf, IP, IPv6, TCP, UDP, Raw
+import os
+import time
 from threading import Thread, Event
 from queue import Queue, Empty
 from datetime import datetime
+from scapy.all import sniff, conf, IP, IPv6, TCP, UDP, Raw
 
 from analyzers import (
     DNSAnalyzer,
@@ -78,6 +80,7 @@ class CaptureEngine:
         self._start_time = None
         self.packet_count = 0
         self.simulation_generator = None
+        self._dumpcap_proc = None
 
         if self.simulate:
             self.simulation_generator = SyntheticTrafficGenerator(
@@ -99,12 +102,18 @@ class CaptureEngine:
 
     def stop(self):
         self._stop_event.set()
+        if self._dumpcap_proc:
+            try:
+                self._dumpcap_proc.terminate()
+                self._dumpcap_proc.wait(timeout=1)
+            except Exception:
+                pass
         if self.simulation_generator:
             self.simulation_generator.stop()
         self.geo_resolver.stop()
         self.dns_spoof_detector.stop()
         if self._capture_thread:
-            self._capture_thread.join(timeout=5)
+            self._capture_thread.join(timeout=3)
 
         stats = self.get_all_stats()
         self.session_logger.write_summary(stats)
@@ -179,19 +188,60 @@ class CaptureEngine:
                     stop_filter=lambda _: self._stop_event.is_set(),
                 )
             else:
-                sniff(
-                    iface=self.interface,
-                    prn=self._process_packet,
-                    store=False,
-                    stop_filter=lambda _: self._stop_event.is_set(),
-                    filter="ip or ip6",
-                )
+                import shutil
+                dumpcap_path = shutil.which("dumpcap")
+                is_root = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
+                if dumpcap_path and not is_root:
+                    self._run_dumpcap_loop(dumpcap_path)
+                else:
+                    sniff(
+                        iface=self.interface,
+                        prn=self._process_packet,
+                        store=False,
+                        stop_filter=lambda _: self._stop_event.is_set(),
+                        filter="ip or ip6",
+                    )
         except PermissionError:
-            self._emit_error("Permission denied. Run with sudo or use --demo mode.")
+            self._emit_error("Permission denied. Run with sudo or ensure wireshark/dumpcap access.")
         except OSError as e:
             self._emit_error(f"Capture error: {e}")
         except Exception as e:
             self._emit_error(f"Unexpected error: {e}")
+
+    def _run_dumpcap_loop(self, dumpcap_path):
+        import subprocess, struct, shutil
+        from scapy.all import Ether
+        stdbuf_path = shutil.which("stdbuf")
+        if stdbuf_path:
+            cmd = [stdbuf_path, "-o0", dumpcap_path, "-F", "pcap", "-i", self.interface, "-q", "-w", "-"]
+        else:
+            cmd = [dumpcap_path, "-F", "pcap", "-i", self.interface, "-q", "-w", "-"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self._dumpcap_proc = proc
+        try:
+            hdr = proc.stdout.read(24)
+            if len(hdr) < 24:
+                return
+
+            while not self._stop_event.is_set():
+                pkt_hdr = proc.stdout.read(16)
+                if not pkt_hdr or len(pkt_hdr) < 16:
+                    break
+                ts_sec, ts_usec, incl_len, orig_len = struct.unpack('<IIII', pkt_hdr)
+                pkt_data = proc.stdout.read(incl_len)
+                if len(pkt_data) < incl_len:
+                    break
+                try:
+                    pkt = Ether(pkt_data)
+                    self._process_packet(pkt)
+                except Exception:
+                    pass
+        finally:
+            try:
+                proc.terminate()
+                proc.wait(timeout=1)
+            except Exception:
+                pass
 
     def _process_packet(self, packet):
         if self._paused:
@@ -496,6 +546,7 @@ class CaptureEngine:
             "geo": self.geo_resolver.get_stats(),
             "privacy_score": self.get_privacy_score(),
             "packets_captured": self.packet_count,
+            "packet_count": self.packet_count,
             "events_logged": self.session_logger.get_event_count(),
         }
 

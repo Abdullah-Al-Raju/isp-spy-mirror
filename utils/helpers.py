@@ -8,16 +8,36 @@ import sys
 from datetime import datetime
 
 
-def check_root(required=True):
-    """Verify if the script is running with root privileges."""
+def check_capture_privileges(required=True):
+    """Verify if user has root or wireshark/dumpcap packet capture capability."""
     is_root = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
-    if not is_root and required:
-        print("[!] Live network packet capture requires root or CAP_NET_RAW privileges.")
+    if is_root:
+        return True
+
+    import shutil, subprocess
+    dumpcap_path = shutil.which("dumpcap")
+    if dumpcap_path:
+        try:
+            res = subprocess.run(
+                [dumpcap_path, "-i", "lo", "-c", "1", "-a", "duration:1"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2
+            )
+            if res.returncode in (0, 1, 2):
+                return True
+        except Exception:
+            pass
+
+    if required:
+        print("[!] Live network packet capture requires root or CAP_NET_RAW / wireshark privileges.")
         print("    Run with: sudo python main.py live")
         print("    Or launch without root using synthetic demo / web dashboard:")
         print("    python main.py web --demo")
         sys.exit(1)
-    return is_root
+    return False
+
+
+def check_root(required=True):
+    return check_capture_privileges(required=required)
 
 
 def get_default_interface():

@@ -16,6 +16,12 @@ isp_spy.db*
 reports/pcaps/
 reports/html/
 reports/dossiers/
+reports/*.html
+reports/*.json
+REAL_TRAFFIC_AUDIT.md
+*live_subscriber*
+*audit*.html
+*audit*.md
 !reports/.gitkeep
 !reports/pcaps/.gitkeep
 !reports/html/.gitkeep
@@ -24,3 +30,4 @@ reports/dossiers/
 .idea/
 *.swp
 .DS_Store
+

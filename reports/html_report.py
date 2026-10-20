@@ -98,7 +98,7 @@ class HTMLReport:
         if not security_rows:
             security_rows = """<tr>
                 <td colspan="3" style="text-align:center; color:#27ae60;">
-                    ✅ No security issues detected
+                    No security issues detected
                 </td>
             </tr>\n"""
 

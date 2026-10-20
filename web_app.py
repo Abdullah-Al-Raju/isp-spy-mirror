@@ -325,21 +325,47 @@ def build_telemetry_payload(engine):
     }
 
 
+@app.post("/api/control/mode")
+async def switch_mode(payload: StartRequest):
+    global global_engine
+    if payload.mode == "live":
+        iface = payload.interface or get_default_interface()
+        if global_engine:
+            global_engine.stop()
+        global_engine = CaptureEngine(interface=iface, simulate=False, geo_enabled=True)
+        global_engine.start()
+        return {"status": "switched", "mode": "live", "interface": iface}
+    elif payload.mode == "simulate":
+        if global_engine:
+            global_engine.stop()
+        global_engine = CaptureEngine(interface="sim0", simulate=True, geo_enabled=False)
+        global_engine.start()
+        return {"status": "switched", "mode": "simulate", "interface": "sim0"}
+    raise HTTPException(status_code=400, detail="Invalid mode specified")
+
+
 def get_active_engine():
     global global_engine
     if global_engine is None:
-        # Default to synthetic simulation so web dashboard is instantly live
-        global_engine = CaptureEngine(
-            interface="sim-eth0",
-            simulate=True,
-            geo_enabled=False,
-        )
+        from utils.helpers import check_capture_privileges, get_default_interface
+        if check_capture_privileges(required=False):
+            iface = get_default_interface()
+            global_engine = CaptureEngine(
+                interface=iface,
+                simulate=False,
+                geo_enabled=True,
+            )
+        else:
+            global_engine = CaptureEngine(
+                interface="sim0",
+                simulate=True,
+                geo_enabled=False,
+            )
         global_engine.start()
     return global_engine
 
 
-
-def run_web_server(host="127.0.0.1", port=8080, engine=None, demo=True):
+def run_web_server(host="127.0.0.1", port=8080, engine=None, demo=False, interface=None):
     """Launch the interactive web dashboard server."""
     global global_engine
     if engine:
@@ -351,11 +377,31 @@ def run_web_server(host="127.0.0.1", port=8080, engine=None, demo=True):
             geo_enabled=False,
         )
         global_engine.start()
+    else:
+        from utils.helpers import check_capture_privileges, get_default_interface
+        iface = interface or get_default_interface()
+        if check_capture_privileges(required=False):
+            global_engine = CaptureEngine(
+                interface=iface,
+                simulate=False,
+                geo_enabled=True,
+            )
+            global_engine.start()
+        else:
+            print("[!] Notice: No live capture privileges detected. Falling back to synthetic simulation.")
+            global_engine = CaptureEngine(
+                interface="sim0",
+                simulate=True,
+                geo_enabled=False,
+            )
+            global_engine.start()
 
+    mode_label = 'Synthetic Privacy Simulation' if (global_engine and global_engine.simulate) else f'Live Network Monitor ({global_engine.interface})'
     print(f"\n[+] ISP Spy Mirror Web Dashboard running at: http://{host}:{port}")
-    print(f"[+] Mode: {'Synthetic Privacy Simulation' if (global_engine and global_engine.simulate) else 'Live Network Monitor'}")
+    print(f"[+] Mode: {mode_label}")
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":
-    run_web_server(host="127.0.0.1", port=8080, demo=True)
+    run_web_server(host="127.0.0.1", port=8080, demo=False)
+
