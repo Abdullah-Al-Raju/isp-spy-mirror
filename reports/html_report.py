@@ -129,7 +129,7 @@ class HTMLReport:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🪞 ISP Spy Mirror — Intelligence Report</title>
+    <title>ISP Spy Mirror — Privacy Intelligence Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -237,13 +237,13 @@ class HTMLReport:
 <div class="container">
 
     <div class="header">
-        <h1>🪞 ISP Spy Mirror — Full Intelligence Report</h1>
+        <h1>ISP Spy Mirror — Full Privacy Intelligence Audit</h1>
         <p>Generated: {timestamp} | Packets: {stats.get("packets_captured", 0):,} | Events: {stats.get("events_logged", 0):,}</p>
     </div>
 
     <!-- Overview Stats -->
     <div class="card full">
-        <h2>📊 Session Overview</h2>
+        <h2>Session Overview</h2>
         <div class="stat-grid">
             <div class="stat">
                 <div class="stat-value">{stats.get("packets_captured", 0):,}</div>
@@ -283,13 +283,13 @@ class HTMLReport:
     <!-- Charts Row -->
     <div class="grid grid-2">
         <div class="card">
-            <h2>📶 Protocol Distribution</h2>
+            <h2>Protocol Distribution</h2>
             <div class="chart-container">
                 <canvas id="protoChart"></canvas>
             </div>
         </div>
         <div class="card">
-            <h2>🔌 Top Ports</h2>
+            <h2>Top Ports</h2>
             <div class="chart-container">
                 <canvas id="portChart"></canvas>
             </div>
@@ -298,7 +298,7 @@ class HTMLReport:
 
     <!-- Domains -->
     <div class="card full">
-        <h2>🔍 Websites Visited ({dns.get("unique_domains", 0)} DNS + {tls.get("unique_domains", 0)} TLS SNI)</h2>
+        <h2>Websites Visited ({dns.get("unique_domains", 0)} DNS + {tls.get("unique_domains", 0)} TLS SNI)</h2>
         <table class="table">
             <thead><tr><th>Domain</th><th>Queries</th><th>Source</th></tr></thead>
             <tbody>{domain_rows}</tbody>
@@ -308,7 +308,7 @@ class HTMLReport:
     <!-- Intel Row -->
     <div class="grid grid-3">
         <div class="card">
-            <h2>🖥 Device Fingerprint</h2>
+            <h2>Device Fingerprint</h2>
             <div class="profile-item">
                 <div class="profile-label">Operating System</div>
                 <div class="profile-value">{best.get("os", "Unknown")}</div>
@@ -328,7 +328,7 @@ class HTMLReport:
         </div>
 
         <div class="card">
-            <h2>🧠 Behavioral Profile</h2>
+            <h2>Behavioral Profile</h2>
             <div class="profile-item">
                 <div class="profile-label">Primary Activity</div>
                 <div class="profile-value">{profile.get("dominant_activity", "Unknown").replace("_", " ").title()}</div>
@@ -348,7 +348,7 @@ class HTMLReport:
         </div>
 
         <div class="card">
-            <h2>💡 Derived Interests</h2>
+            <h2>Derived Interests</h2>
             <ul>{interests_html}</ul>
             <h3>ISP Inferences</h3>
             <ul>{inferences_html}</ul>
@@ -358,13 +358,13 @@ class HTMLReport:
     <!-- Activity Chart -->
     <div class="grid grid-2">
         <div class="card">
-            <h2>🎯 Activity Breakdown</h2>
+            <h2>Activity Breakdown</h2>
             <div class="chart-container">
                 <canvas id="activityChart"></canvas>
             </div>
         </div>
         <div class="card">
-            <h2>🕵 Tracker Categories</h2>
+            <h2>Tracker Categories</h2>
             <div class="chart-container">
                 <canvas id="trackerChart"></canvas>
             </div>
@@ -373,7 +373,7 @@ class HTMLReport:
 
     <!-- Trackers -->
     <div class="card full">
-        <h2>🕵 Tracking Companies ({tracker.get("unique_companies", 0)} companies, {tracker.get("total_tracker_hits", 0)} hits)</h2>
+        <h2>Tracking Companies ({tracker.get("unique_companies", 0)} companies, {tracker.get("total_tracker_hits", 0)} hits)</h2>
         <table class="table">
             <thead><tr><th>Company</th><th>Category</th><th>Domain</th><th>Hits</th></tr></thead>
             <tbody>{tracker_rows}</tbody>
@@ -382,7 +382,7 @@ class HTMLReport:
 
     <!-- Security -->
     <div class="card full {'alert' if total_issues > 0 else 'safe'}">
-        <h2>🚨 Security Assessment</h2>
+        <h2>Security Assessment</h2>
         <table class="table">
             <thead><tr><th>Issue Type</th><th>Count</th><th>Severity</th></tr></thead>
             <tbody>{security_rows}</tbody>
@@ -391,7 +391,7 @@ class HTMLReport:
 
     <!-- ISP Knowledge -->
     <div class="isp-box">
-        <h2>🪞 What Your ISP Knows About You</h2>
+        <h2>What Your ISP Knows About You</h2>
         <ul>
             <li>Every website you visited ({dns.get("unique_domains", 0)} DNS + {tls.get("unique_domains", 0)} TLS SNI)</li>
             <li>When you visited them (timestamps on every packet)</li>

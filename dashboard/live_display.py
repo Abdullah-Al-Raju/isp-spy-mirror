@@ -30,8 +30,8 @@ class LiveDashboard:
         "HTTP": "yellow",
         "TLS": "green",
         "META": "blue",
-        "🚨 LEAK": "bold red",
-        "⚠️  WARN": "bold yellow",
+        "LEAK": "bold red",
+        "WARN": "bold yellow",
         "ERROR": "bold red",
         "TRACKER": "magenta",
         "FINGERPRINT": "bright_cyan",
@@ -153,12 +153,12 @@ class LiveDashboard:
 
         vpn_status = vpn.get("vpn_status", "")
         if "Active" in vpn_status:
-            parts.append(f"[green]🔒 VPN[/]")
+            parts.append(f"[green][VPN SECURE][/]")
             vpn_leaks = vpn.get("total_leaks", 0)
             if vpn_leaks > 0:
                 parts.append(f"[bold red]VPN LEAKS: {vpn_leaks}[/]")
         else:
-            parts.append(f"[yellow]🔓 No VPN[/]")
+            parts.append(f"[yellow][NO VPN][/]")
 
         spoof_count = spoof.get("spoofs_detected", 0)
         if spoof_count > 0:
@@ -172,7 +172,7 @@ class LiveDashboard:
 
         return Panel(
             Align.center(Text.from_markup(status_line)),
-            title="[bold]🪞 ISP SPY MIRROR — FULL INTELLIGENCE[/]",
+            title="[bold][ISP SPY MIRROR // FULL INTELLIGENCE][/]",
             border_style="bright_blue",
             box=box.DOUBLE,
         )
@@ -243,7 +243,7 @@ class LiveDashboard:
 
         return Panel(
             table,
-            title="[bold]📡 Live Traffic[/]",
+            title="[bold][LIVE TRAFFIC][/]",
             border_style="blue",
             box=box.ROUNDED,
         )
@@ -283,7 +283,7 @@ class LiveDashboard:
 
         return Panel(
             content,
-            title="[bold]📈 Bandwidth (last 60s)[/]",
+            title="[bold][BANDWIDTH (LAST 60s)][/]",
             border_style="green",
             box=box.ROUNDED,
         )
@@ -348,7 +348,7 @@ class LiveDashboard:
         panel_content = Group(*sections)
         return Panel(
             panel_content,
-            title="[bold]📊 Statistics[/]",
+            title="[bold][STATISTICS][/]",
             border_style="blue",
             box=box.ROUNDED,
         )
@@ -369,7 +369,7 @@ class LiveDashboard:
             fp_table.add_row("Browser", best.get("browser", "?"))
             fp_table.add_row("Device", best.get("device", "?"))
             fp_table.add_row("JA3s", str(best.get("ja3_count", 0)))
-            sections.append(Panel(fp_table, title="[bold bright_cyan]🖥 Device[/]", box=box.SIMPLE))
+            sections.append(Panel(fp_table, title="[bold bright_cyan][DEVICE][/]", box=box.SIMPLE))
 
         # Trackers
         tracker = stats.get("tracker", {})
@@ -390,9 +390,9 @@ class LiveDashboard:
                 tr_content.add_column(ratio=1)
                 tr_content.add_row(tr_table)
                 tr_content.add_row(Text.from_markup(cat_str.strip()))
-                sections.append(Panel(tr_content, title="[bold magenta]🕵 Trackers[/]", box=box.SIMPLE))
+                sections.append(Panel(tr_content, title="[bold magenta][TRACKERS][/]", box=box.SIMPLE))
             else:
-                sections.append(Panel(tr_table, title="[bold magenta]🕵 Trackers[/]", box=box.SIMPLE))
+                sections.append(Panel(tr_table, title="[bold magenta][TRACKERS][/]", box=box.SIMPLE))
 
         # Behavior
         behavior = stats.get("behavior", {})
@@ -413,9 +413,9 @@ class LiveDashboard:
                 bh_content.add_column(ratio=1)
                 bh_content.add_row(bh_table)
                 bh_content.add_row(Text.from_markup(inf_text.strip()))
-                sections.append(Panel(bh_content, title="[bold bright_green]🧠 Behavior[/]", box=box.SIMPLE))
+                sections.append(Panel(bh_content, title="[bold bright_green][BEHAVIOR][/]", box=box.SIMPLE))
             else:
-                sections.append(Panel(bh_table, title="[bold bright_green]🧠 Behavior[/]", box=box.SIMPLE))
+                sections.append(Panel(bh_table, title="[bold bright_green][BEHAVIOR][/]", box=box.SIMPLE))
 
         # Leaks summary
         leaks = stats.get("leaks", {})
@@ -432,7 +432,7 @@ class LiveDashboard:
             sec_table.add_row("Data Leaks", str(leaks.get("total_leaks", 0)))
             sec_table.add_row("VPN Leaks", str(vpn.get("total_leaks", 0)))
             sec_table.add_row("DNS Spoof", str(spoof.get("spoofs_detected", 0)))
-            sections.append(Panel(sec_table, title="[bold red]🚨 Security[/]", box=box.SIMPLE))
+            sections.append(Panel(sec_table, title="[bold red][SECURITY][/]", box=box.SIMPLE))
 
         if not sections:
             sections.append(Panel(
@@ -443,7 +443,7 @@ class LiveDashboard:
         panel_content = Group(*sections)
         return Panel(
             panel_content,
-            title="[bold]🔍 Intelligence[/]",
+            title="[bold][INTELLIGENCE][/]",
             border_style="bright_blue",
             box=box.ROUNDED,
         )
@@ -458,7 +458,7 @@ class LiveDashboard:
                         "activity will appear here.[/]"
                     )
                 ),
-                title="[bold]🔐 Security Alerts[/]",
+                title="[bold][SECURITY ALERTS][/]",
                 border_style="dim",
                 box=box.ROUNDED,
             )
@@ -499,7 +499,7 @@ class LiveDashboard:
 
         return Panel(
             alert_table,
-            title=f"[bold red]🚨 Security Alerts ({len(self.alerts)} found)[/]",
+            title=f"[bold red][SECURITY] Alerts ({len(self.alerts)} found)[/]",
             border_style="red",
             box=box.ROUNDED,
         )
@@ -515,7 +515,7 @@ class SummaryReport:
 
         # Header
         self.console.print(Panel(
-            Align.center(Text("🪞 ISP SPY MIRROR — Full Intelligence Report",
+            Align.center(Text("[ISP SPY MIRROR // FULL INTELLIGENCE REPORT]",
                              style="bold white")),
             border_style="bright_blue",
             box=box.DOUBLE,
@@ -535,13 +535,13 @@ class SummaryReport:
         overview.add_row("Data Received", bytes_to_human(meta.get("bytes_received", 0)))
         overview.add_row("Unique Destinations", str(meta.get("unique_destinations", 0)))
 
-        self.console.print(Panel(overview, title="[bold]📊 Overview[/]"))
+        self.console.print(Panel(overview, title="[bold][OVERVIEW][/]"))
         self.console.print()
 
         # DNS
         dns = stats.get("dns", {})
         self.console.print(
-            f"[bold cyan]🔍 DNS Queries:[/] {dns.get('total_queries', 0)} "
+            f"[bold cyan]DNS Queries:[/] {dns.get('total_queries', 0)} "
             f"({dns.get('unique_domains', 0)} unique domains)"
         )
         top_domains = dns.get("top_domains", [])
@@ -557,7 +557,7 @@ class SummaryReport:
         # TLS/HTTPS
         tls = stats.get("tls", {})
         self.console.print(
-            f"[bold green]🔒 HTTPS (SNI):[/] "
+            f"[bold green]HTTPS (SNI):[/] "
             f"{tls.get('total_handshakes', 0)} "
             f"({tls.get('unique_domains', 0)} unique)"
         )
@@ -588,7 +588,7 @@ class SummaryReport:
                 f"[bold]Browser:[/] [cyan]{best.get('browser', '?')}[/]  |  "
                 f"[bold]Device:[/] [cyan]{best.get('device', '?')}[/]  |  "
                 f"[bold]JA3 Hashes:[/] [cyan]{best.get('ja3_count', 0)}[/]",
-                title="[bold bright_cyan]🖥 Device Fingerprint[/]",
+                title="[bold bright_cyan][DEVICE] Fingerprint[/]",
                 border_style="bright_cyan",
             ))
             self.console.print()
@@ -605,7 +605,7 @@ class SummaryReport:
                 tr_table.add_row(str(count), company, category, domain)
             self.console.print(Panel(
                 tr_table,
-                title=f"[bold magenta]🕵 Trackers Found "
+                title=f"[bold magenta][TRACKERS] Found "
                       f"({tracker.get('unique_companies', 0)} companies)[/]",
                 border_style="magenta",
             ))
@@ -641,7 +641,7 @@ class SummaryReport:
 
             self.console.print(Panel(
                 Text.from_markup(profile_text),
-                title="[bold bright_green]🧠 Behavioral Profile "
+                title="[bold bright_green][BEHAVIOR]al Profile "
                       "(what ISP could sell)[/]",
                 border_style="bright_green",
             ))
@@ -668,7 +668,7 @@ class SummaryReport:
             )
             self.console.print(Panel(
                 Text.from_markup(sec_text),
-                title=f"[bold red]🚨 {total_issues} Security Issues[/]",
+                title=f"[bold red]ALERT: {total_issues} Security Issues[/]",
                 border_style="red",
             ))
         else:
@@ -703,7 +703,7 @@ class SummaryReport:
                 + f"\n[dim]All of this is visible even with HTTPS. "
                   f"Only a VPN hides the destination metadata.[/]"
             ),
-            title="[bold]🪞 What Your ISP Knows About You[/]",
+            title="[bold][WHAT YOUR ISP KNOWS ABOUT YOU][/]",
             border_style="bright_blue",
         ))
         self.console.print()

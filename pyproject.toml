@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isp-spy-mirror"
+version = "2.0.0"
+description = "Defensive network privacy intelligence suite, packet sniffer, and ISP telemetry mirror."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Abduallah Al Raju" }
+]
+keywords = [
+  "network-security",
+  "privacy-audit",
+  "packet-sniffer",
+  "isp-monitoring",
+  "dns-leak-detection",
+  "sni-inspector",
+  "encrypted-client-hello",
+  "traffic-analysis",
+  "scapy",
+  "cybersecurity-dashboard",
+  "threat-intelligence"
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Information Technology",
+  "Topic :: Security",
+  "Topic :: System :: Networking :: Monitoring",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "scapy>=2.5.0",
+  "rich>=13.7.0",
+  "requests>=2.31.0",
+  "fastapi>=0.100.0",
+  "uvicorn>=0.23.0",
+  "pydantic>=2.0.0",
+]
+
+[project.scripts]
+isp-spy = "main:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-v"

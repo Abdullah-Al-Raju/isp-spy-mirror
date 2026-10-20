@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISP Spy Mirror // Privacy Telemetry & Threat Radar</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+</head>
+<body class="cyber-soc">
+  <!-- TOP TACTICAL NAVIGATION BAR -->
+  <header class="tactical-header">
+    <div class="header-left">
+      <div class="logo-group">
+        <span class="radar-glyph"></span>
+        <div class="brand-text">
+          <span class="brand-title">ISP SPY MIRROR</span>
+          <span class="brand-sub">DEFENSIVE PRIVACY AUDITOR &amp; TRAFFIC RADAR</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="status-indicator">
+        <span class="pulse-dot" id="engineDot"></span>
+        <span class="status-text" id="engineStatus">CONNECTING...</span>
+      </div>
+      <div class="stat-pill">
+        <span class="pill-label">INTERFACE:</span>
+        <span class="pill-value" id="currentInterface">--</span>
+      </div>
+      <div class="stat-pill">
+        <span class="pill-label">ELAPSED:</span>
+        <span class="pill-value" id="sessionElapsed">00:00:00</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="control-actions">
+        <button id="btnToggleCapture" class="cyber-btn btn-primary">
+          <span class="btn-text">PAUSE STREAM</span>
+        </button>
+        <div class="dropdown">
+          <button class="cyber-btn btn-warning dropdown-toggle" id="btnInjectMenu">
+            INJECT SCENARIO ▾
+          </button>
+          <div class="dropdown-menu" id="injectDropdown">
+            <button class="dropdown-item" onclick="injectScenario('credential_leak')">Plaintext Auth Leak</button>
+            <button class="dropdown-item" onclick="injectScenario('jwt_leak')">Exposed JWT Token</button>
+            <button class="dropdown-item" onclick="injectScenario('aws_leak')">AWS Access Key Leak</button>
+            <button class="dropdown-item" onclick="injectScenario('vpn_leak')">VPN Tunnel DNS Bypass</button>
+            <button class="dropdown-item" onclick="injectScenario('tracker_storm')">Ad Tracker Beacon Storm</button>
+            <button class="dropdown-item" onclick="injectScenario('ech_handshake')">Encrypted Client Hello (ECH)</button>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="cyber-btn btn-outline dropdown-toggle" id="btnExportMenu">
+            EXPORT AUDIT ▾
+          </button>
+          <div class="dropdown-menu" id="exportDropdown">
+            <a class="dropdown-item" href="/api/export/pcap" target="_blank">Download PCAP File</a>
+            <a class="dropdown-item" href="/api/export/html" target="_blank">HTML Audit Report</a>
+            <a class="dropdown-item" href="/api/export/json" target="_blank">Raw JSON Telemetry</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN HUD GRID -->
+  <main class="dashboard-grid">
+    
+    <!-- ROW 1: TELEMETRY & PRIVACY HEALTH HUD -->
+    <section class="hud-card privacy-card">
+      <div class="card-header">
+        <span class="card-title">PRIVACY HEALTH SCORE</span>
+        <span class="card-badge" id="privacyStatusBadge">CALCULATING</span>
+      </div>
+      <div class="privacy-body">
+        <div class="score-dial-wrap">
+          <svg class="score-ring" viewBox="0 0 120 120">
+            <circle class="score-ring-bg" cx="60" cy="60" r="50"></circle>
+            <circle class="score-ring-fill" id="scoreRingFill" cx="60" cy="60" r="50"></circle>
+          </svg>
+          <div class="score-inner">
+            <span class="score-val" id="scoreValue">--</span>
+            <span class="score-grade" id="scoreGrade">--</span>
+          </div>
+        </div>
+
+        <div class="privacy-breakdown">
+          <div class="metric-row">
+            <span class="metric-name">Credential Leaks:</span>
+            <span class="metric-value text-critical" id="metricCredLeaks">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">VPN DNS Bypasses:</span>
+            <span class="metric-value text-critical" id="metricVpnLeaks">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Ad Trackers Profiling:</span>
+            <span class="metric-value text-warning" id="metricTrackers">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Plaintext HTTP Requests:</span>
+            <span class="metric-value text-warning" id="metricPlainHttp">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">ECH Shielded Handshakes:</span>
+            <span class="metric-value text-success" id="metricEchShield">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="deductions-box">
+        <span class="deductions-title">ISP OBSERVATION WARNINGS:</span>
+        <ul class="deductions-list" id="deductionsList">
+          <li>Monitoring real-time network stream...</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ROW 1: PROTOCOL METRICS & TRAFFIC TELEMETRY -->
+    <section class="hud-card throughput-card">
+      <div class="card-header">
+        <span class="card-title">REAL-TIME TRAFFIC TELEMETRY</span>
+        <span class="card-badge" id="packetRateBadge">0 PKT/S</span>
+      </div>
+      <div class="telemetry-grid">
+        <div class="stat-box">
+          <span class="stat-number" id="statTotalPackets">0</span>
+          <span class="stat-caption">PACKETS ANALYZED</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number" id="statTotalEvents">0</span>
+          <span class="stat-caption">INTELLIGENCE EVENTS</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number" id="statUniqueDomains">0</span>
+          <span class="stat-caption">UNIQUE DOMAINS</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number" id="statUniqueDest">0</span>
+          <span class="stat-caption">IP DESTINATIONS</span>
+        </div>
+      </div>
+
+      <div class="protocol-bar-container">
+        <div class="bar-label-group">
+          <span>TRANSPORT PROTOCOL DISTRIBUTION</span>
+          <span id="protocolPercentages">TLS 0% | DNS 0% | HTTP 0%</span>
+        </div>
+        <div class="stacked-bar">
+          <div class="bar-segment seg-tls" id="barTls" style="width: 50%;"></div>
+          <div class="bar-segment seg-dns" id="barDns" style="width: 30%;"></div>
+          <div class="bar-segment seg-http" id="barHttp" style="width: 15%;"></div>
+          <div class="bar-segment seg-other" id="barOther" style="width: 5%;"></div>
+        </div>
+      </div>
+
+      <div class="data-transfer-row">
+        <div class="transfer-stat">
+          <span class="tx-glyph">▲</span>
+          <span class="tx-label">UPLOAD (ISP VISIBLE):</span>
+          <span class="tx-val" id="txBytes">0 B</span>
+        </div>
+        <div class="transfer-stat">
+          <span class="rx-glyph">▼</span>
+          <span class="rx-label">DOWNLOAD (ISP DELIVERED):</span>
+          <span class="rx-val" id="rxBytes">0 B</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 1: ISP DOSSIER & MONETIZATION PROFILE -->
+    <section class="hud-card dossier-card">
+      <div class="card-header">
+        <span class="card-title">ISP DATA BROKER DOSSIER</span>
+        <span class="card-badge badge-warning" id="dossierRiskBadge">CONFIDENTIAL</span>
+      </div>
+      <div class="dossier-body">
+        <div class="dossier-field">
+          <span class="df-label">TARGET FINGERPRINT:</span>
+          <span class="df-val" id="dossierOsBrowser">Detecting device...</span>
+        </div>
+        <div class="dossier-field">
+          <span class="df-label">INFERRED ACTIVITY:</span>
+          <span class="df-val text-cyan" id="dossierActivity">Analyzing traffic patterns...</span>
+        </div>
+        <div class="dossier-field">
+          <span class="df-label">MONETIZATION VALUE:</span>
+          <span class="df-val text-success" id="dossierValue">$0.00 / profile</span>
+        </div>
+        <div class="dossier-field">
+          <span class="df-label">DATA BROKER STATUS:</span>
+          <span class="df-val" id="dossierAdCategories">Categorizing behavioral profile...</span>
+        </div>
+
+        <div class="trackers-sublist">
+          <span class="trackers-sublist-title">DETECTED TRACKING CONSORTIUMS:</span>
+          <div class="tracker-chips" id="trackerChips">
+            <span class="chip chip-empty">Scanning for tracking beacons...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 2: LIVE STREAM / TACTICAL PACKET LOG -->
+    <section class="hud-card stream-card">
+      <div class="card-header flex-between">
+        <div class="stream-title-group">
+          <span class="card-title">LIVE INTERCEPT STREAM</span>
+          <span class="stream-counter" id="streamCounter">[0 Events]</span>
+        </div>
+        <div class="stream-filter-tabs">
+          <button class="filter-tab active" data-filter="all">ALL</button>
+          <button class="filter-tab text-critical" data-filter="LEAK">LEAKS</button>
+          <button class="filter-tab text-magenta" data-filter="TRACKER">TRACKERS</button>
+          <button class="filter-tab text-cyan" data-filter="DNS">DNS</button>
+          <button class="filter-tab text-success" data-filter="TLS">TLS/ECH</button>
+          <button class="filter-tab text-warning" data-filter="HTTP">HTTP</button>
+          <button class="cyber-btn-sm" id="btnClearStream">CLEAR</button>
+        </div>
+      </div>
+
+      <div class="stream-table-wrapper">
+        <table class="stream-table">
+          <thead>
+            <tr>
+              <th width="10%">TIME</th>
+              <th width="12%">TYPE</th>
+              <th width="15%">SUBTYPE</th>
+              <th width="20%">DESTINATION</th>
+              <th width="43%">DETAILS &amp; SNOOPED PAYLOAD</th>
+            </tr>
+          </thead>
+          <tbody id="streamTableBody">
+            <!-- Event rows dynamically inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="tactical-footer">
+    <div class="footer-left">
+      <span>ISP SPY MIRROR // VERSION 2.0.0 FULL INTELLIGENCE</span>
+      <span class="divider">|</span>
+      <span>SYSTEM ARCHITECT: ABDUALLAH AL RAJU</span>
+    </div>
+    <div class="footer-right">
+      <span id="footerConnectionStatus">WS: ACTIVE</span>
+      <span class="divider">|</span>
+      <span id="footerDbStatus">SQLITE: CONNECTED</span>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

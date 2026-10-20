@@ -24,17 +24,24 @@ from logger.session_logger import SessionLogger
 from data.database import Database
 from reports.pcap_export import PCAPExport
 from utils.helpers import get_local_ips, format_timestamp, is_private_ip
+from simulation.traffic_generator import SyntheticTrafficGenerator
+import time
 
 
 class CaptureEngine:
 
-    def __init__(self, interface, duration=None, show_all=False,
-                 geo_enabled=True, output_path=None, db_path="isp_spy.db"):
-        self.interface = interface
+    def __init__(self, interface="eth0", duration=None, show_all=False,
+                 geo_enabled=True, output_path=None, db_path="isp_spy.db",
+                 simulate=False, pcap_file=None):
+        self.interface = interface or "eth0"
         self.duration = duration
         self.show_all = show_all
+        self.simulate = simulate
+        self.pcap_file = pcap_file
 
         self.local_ips = get_local_ips()
+        self.local_ips.add(SyntheticTrafficGenerator.LOCAL_IP)
+        self.local_ips.add("127.0.0.1")
 
         # Analyzers
         self.dns_analyzer = DNSAnalyzer()
@@ -46,18 +53,19 @@ class CaptureEngine:
         self.sensitive_detector = SensitiveDetector()
         self.fingerprint_analyzer = FingerprintAnalyzer()
         self.tracker_analyzer = TrackerAnalyzer()
-        self.vpn_leak_detector = VPNLeakDetector(interface=interface)
+        self.vpn_leak_detector = VPNLeakDetector(interface=self.interface)
         self.dns_spoof_detector = DNSSpoofDetector()
         self.behavior_analyzer = BehaviorAnalyzer()
 
         # Resolvers
         self.hostname_resolver = HostnameResolver()
-        self.geo_resolver = GeoResolver(enabled=geo_enabled)
+        self.geo_resolver = GeoResolver(enabled=geo_enabled and not simulate)
 
         # Storage
         self.session_logger = SessionLogger(output_path=output_path)
         self.db = Database(db_path=db_path)
-        self.session_id = self.db.create_session(interface=interface)
+        session_label = f"sim-{self.interface}" if simulate else (f"pcap-{pcap_file}" if pcap_file else self.interface)
+        self.session_id = self.db.create_session(interface=session_label)
         self.pcap_exporter = PCAPExport()
 
         # Event queue
@@ -65,9 +73,16 @@ class CaptureEngine:
 
         # Control
         self._stop_event = Event()
+        self._paused = False
         self._capture_thread = None
         self._start_time = None
         self.packet_count = 0
+        self.simulation_generator = None
+
+        if self.simulate:
+            self.simulation_generator = SyntheticTrafficGenerator(
+                packet_callback=self._process_packet, rate=2.0
+            )
 
         # Noise filter
         self._noisy_domains = {
@@ -84,6 +99,8 @@ class CaptureEngine:
 
     def stop(self):
         self._stop_event.set()
+        if self.simulation_generator:
+            self.simulation_generator.stop()
         self.geo_resolver.stop()
         self.dns_spoof_detector.stop()
         if self._capture_thread:
@@ -98,6 +115,38 @@ class CaptureEngine:
         pcap_path = self.pcap_exporter.export(session_id=self.session_id)
 
         return stats, pcap_path
+
+    def pause(self):
+        self._paused = True
+        if self.simulation_generator:
+            self.simulation_generator.pause()
+
+    def resume(self):
+        self._paused = False
+        if self.simulation_generator:
+            self.simulation_generator.resume()
+
+    def is_paused(self):
+        return self._paused
+
+    def inject_scenario(self, scenario_name):
+        if not self.simulation_generator:
+            self.simulation_generator = SyntheticTrafficGenerator(
+                packet_callback=self._process_packet
+            )
+        if scenario_name in ("credential_leak", "auth_leak"):
+            return self.simulation_generator.inject_credential_leak()
+        elif scenario_name == "jwt_leak":
+            return self.simulation_generator.inject_jwt_leak()
+        elif scenario_name == "aws_leak":
+            return self.simulation_generator.inject_aws_leak()
+        elif scenario_name == "vpn_leak":
+            return self.simulation_generator.inject_vpn_dns_leak()
+        elif scenario_name == "tracker_storm":
+            return self.simulation_generator.inject_tracker_storm()
+        elif scenario_name == "ech_handshake":
+            return self.simulation_generator.inject_ech_handshake()
+        return None
 
     def is_running(self):
         if self._stop_event.is_set():
@@ -117,21 +166,36 @@ class CaptureEngine:
     def _capture_loop(self):
         try:
             conf.verb = 0
-            sniff(
-                iface=self.interface,
-                prn=self._process_packet,
-                store=False,
-                stop_filter=lambda _: self._stop_event.is_set(),
-                filter="ip or ip6",
-            )
+            if self.simulate:
+                self.simulation_generator.start()
+                while not self._stop_event.is_set():
+                    time.sleep(0.1)
+                self.simulation_generator.stop()
+            elif self.pcap_file:
+                sniff(
+                    offline=self.pcap_file,
+                    prn=self._process_packet,
+                    store=False,
+                    stop_filter=lambda _: self._stop_event.is_set(),
+                )
+            else:
+                sniff(
+                    iface=self.interface,
+                    prn=self._process_packet,
+                    store=False,
+                    stop_filter=lambda _: self._stop_event.is_set(),
+                    filter="ip or ip6",
+                )
         except PermissionError:
-            self._emit_error("Permission denied. Run with sudo.")
+            self._emit_error("Permission denied. Run with sudo or use --demo mode.")
         except OSError as e:
             self._emit_error(f"Capture error: {e}")
         except Exception as e:
             self._emit_error(f"Unexpected error: {e}")
 
     def _process_packet(self, packet):
+        if self._paused:
+            return
         self.packet_count += 1
 
         if not self._is_our_traffic(packet):
@@ -224,15 +288,15 @@ class CaptureEngine:
         # Record bandwidth
         pkt_len = 0
         if packet.haslayer(IP):
-            pkt_len = packet[IP].len
+            pkt_len = packet[IP].len or len(packet)
             is_outbound = packet[IP].src in self.local_ips
         elif packet.haslayer(IPv6):
-            pkt_len = packet[IPv6].plen
+            pkt_len = packet[IPv6].plen or len(packet)
             is_outbound = packet[IPv6].src in self.local_ips
         else:
             is_outbound = False
 
-        if pkt_len > 0:
+        if pkt_len and pkt_len > 0:
             self.behavior_analyzer.record_bytes(
                 pkt_len, "sent" if is_outbound else "received"
             )
@@ -247,7 +311,7 @@ class CaptureEngine:
             self.session_logger.log_event(event)
             self.db.insert_event(self.session_id, event)
 
-            if event.get("type") == "🚨 LEAK":
+            if "LEAK" in event.get("type", ""):
                 self.db.insert_leak(self.session_id, event)
             if event.get("type") == "FINGERPRINT":
                 self.db.insert_fingerprint(self.session_id, event)
@@ -262,6 +326,8 @@ class CaptureEngine:
                     pass
 
     def _is_our_traffic(self, packet):
+        if self.simulate or self.pcap_file:
+            return True
         if packet.haslayer(IP):
             return (packet[IP].src in self.local_ips or
                     packet[IP].dst in self.local_ips)
@@ -316,6 +382,104 @@ class CaptureEngine:
         except Exception:
             pass
 
+    def get_privacy_score(self):
+        """Calculate dynamic privacy health score (0-100) and letter grade."""
+        score = 100
+        deductions = []
+
+        # 1. Plaintext Sensitive Credential Leaks (-20 each, max -50)
+        leak_stats = self.sensitive_detector.get_stats()
+        total_leaks = leak_stats.get("total_leaks", 0)
+        critical_leaks = leak_stats.get("critical_count", 0)
+        if critical_leaks > 0:
+            penalty = min(50, critical_leaks * 20)
+            score -= penalty
+            deductions.append(f"Critical credential / secret leaks ({critical_leaks} detected: -{penalty})")
+        elif total_leaks > 0:
+            penalty = min(20, total_leaks * 5)
+            score -= penalty
+            deductions.append(f"Plaintext sensitive warnings ({total_leaks} detected: -{penalty})")
+
+        # 2. VPN DNS Leaks & Spoofing (-30)
+        vpn_stats = self.vpn_leak_detector.get_stats()
+        vpn_leaks = vpn_stats.get("total_leaks", 0)
+        if vpn_leaks > 0:
+            penalty = min(30, vpn_leaks * 15)
+            score -= penalty
+            deductions.append(f"DNS queries bypassing VPN tunnel ({vpn_leaks} leaks: -{penalty})")
+
+        dns_spoof_stats = self.dns_spoof_detector.get_stats()
+        spoofs = dns_spoof_stats.get("spoofs_detected", 0)
+        if spoofs > 0:
+            score -= 25
+            deductions.append("DNS spoofing / tampering detected: -25")
+
+        # 3. Trackers & Ad Network Profiling (-2 per unique tracker domain, max -20)
+        tracker_stats = self.tracker_analyzer.get_stats()
+        unique_trackers = tracker_stats.get("unique_trackers", 0)
+        if unique_trackers > 0:
+            penalty = min(20, unique_trackers * 2)
+            score -= penalty
+            deductions.append(f"Ad networks & profiling trackers ({unique_trackers} domains: -{penalty})")
+
+        # 4. Plaintext HTTP Traffic (-2 per request, max -15)
+        http_stats = self.http_analyzer.get_stats()
+        http_requests = http_stats.get("total_requests", 0)
+        if http_requests > 0:
+            penalty = min(15, http_requests * 2)
+            score -= penalty
+            deductions.append(f"Unencrypted HTTP requests visible to ISP ({http_requests} reqs: -{penalty})")
+
+        # 5. TLS SNI vs ECH (-10 if SNI leaked without ECH, +5 bonus if ECH active)
+        tls_stats = self.tls_analyzer.get_stats()
+        total_tls = tls_stats.get("total_handshakes", 0)
+        ech_tls = tls_stats.get("ech_protected_handshakes", 0)
+        if total_tls > 0 and ech_tls == 0:
+            score -= 10
+            deductions.append("TLS SNI exposed in cleartext without ECH: -10")
+        elif ech_tls > 0:
+            score = min(100, score + 5)
+
+        score = max(0, min(100, score))
+
+        if score >= 90:
+            grade = "A+"
+            status = "EXCELLENT"
+            color = "#00ff88"
+        elif score >= 80:
+            grade = "A"
+            status = "GOOD"
+            color = "#00e5ff"
+        elif score >= 70:
+            grade = "B"
+            status = "MODERATE"
+            color = "#ffea00"
+        elif score >= 55:
+            grade = "C"
+            status = "POOR"
+            color = "#ff9100"
+        elif score >= 40:
+            grade = "D"
+            status = "CRITICAL"
+            color = "#ff3d00"
+        else:
+            grade = "F"
+            status = "COMPROMISED"
+            color = "#ff1744"
+
+        return {
+            "score": score,
+            "grade": grade,
+            "status": status,
+            "color": color,
+            "deductions": deductions,
+            "critical_leaks": critical_leaks,
+            "vpn_leaks": vpn_leaks,
+            "trackers_detected": unique_trackers,
+            "ech_protected": ech_tls,
+            "plaintext_http": http_requests,
+        }
+
     def get_all_stats(self):
         return {
             "dns": self.dns_analyzer.get_stats(),
@@ -330,6 +494,7 @@ class CaptureEngine:
             "behavior": self.behavior_analyzer.get_stats(),
             "resolver": self.hostname_resolver.get_cache_stats(),
             "geo": self.geo_resolver.get_stats(),
+            "privacy_score": self.get_privacy_score(),
             "packets_captured": self.packet_count,
             "events_logged": self.session_logger.get_event_count(),
         }

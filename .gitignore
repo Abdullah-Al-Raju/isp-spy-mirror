@@ -9,7 +9,10 @@ env/
 *.log
 *.json
 *.pcap
-isp_spy.db
+isp_spy.db*
+*.db
+*.db-journal
+.pytest_cache/
 reports/pcaps/
 reports/html/
 reports/dossiers/

@@ -8,12 +8,16 @@ import sys
 from datetime import datetime
 
 
-def check_root():
-    """Verify the script is running with root privileges."""
-    if os.geteuid() != 0:
-        print("[!] This tool requires root privileges for packet capture.")
-        print("    Run with: sudo python main.py")
+def check_root(required=True):
+    """Verify if the script is running with root privileges."""
+    is_root = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
+    if not is_root and required:
+        print("[!] Live network packet capture requires root or CAP_NET_RAW privileges.")
+        print("    Run with: sudo python main.py live")
+        print("    Or launch without root using synthetic demo / web dashboard:")
+        print("    python main.py web --demo")
         sys.exit(1)
+    return is_root
 
 
 def get_default_interface():

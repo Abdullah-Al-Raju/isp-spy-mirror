@@ -323,6 +323,62 @@ class Database:
                 "SELECT * FROM leaks ORDER BY timestamp DESC"
             ).fetchall()
 
+    def get_recent_sessions(self, limit=10):
+        """Get the most recent sessions."""
+        with self._lock:
+            conn = self._get_conn()
+            cursor = conn.execute(
+                "SELECT * FROM sessions ORDER BY id DESC LIMIT ?", (limit,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_aggregate_stats(self):
+        """Aggregate summary statistics across all recorded sessions."""
+        with self._lock:
+            conn = self._get_conn()
+            cursor = conn.execute("""
+                SELECT
+                    SUM(packets_captured) as packets_captured,
+                    SUM(events_logged) as events_logged,
+                    SUM(bytes_sent) as bytes_sent,
+                    SUM(bytes_received) as bytes_received,
+                    SUM(dns_queries) as dns_queries,
+                    SUM(unique_domains) as unique_domains,
+                    SUM(tls_handshakes) as tls_handshakes,
+                    SUM(http_requests) as http_requests,
+                    SUM(leaks_found) as leaks_found
+                FROM sessions
+            """)
+            row = cursor.fetchone()
+            meta = dict(row) if row else {}
+            return {
+                "metadata": {
+                    "bytes_sent": meta.get("bytes_sent") or 0,
+                    "bytes_received": meta.get("bytes_received") or 0,
+                    "unique_destinations": 0,
+                },
+                "dns": {
+                    "unique_domains": meta.get("unique_domains") or 0,
+                    "total_queries": meta.get("dns_queries") or 0,
+                    "top_domains": [],
+                },
+                "tls": {
+                    "unique_domains": meta.get("tls_handshakes") or 0,
+                    "total_handshakes": meta.get("tls_handshakes") or 0,
+                    "domains": [],
+                },
+                "http": {
+                    "total_requests": meta.get("http_requests") or 0,
+                    "unique_urls": 0,
+                },
+                "leaks": {
+                    "total_leaks": meta.get("leaks_found") or 0,
+                    "critical_count": meta.get("leaks_found") or 0,
+                },
+                "packets_captured": meta.get("packets_captured") or 0,
+                "events_logged": meta.get("events_logged") or 0,
+            }
+
     def close(self):
         """Close the database connection."""
         with self._lock:
